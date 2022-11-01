@@ -1,4 +1,4 @@
-class Sense:
+class SenseOne:
     def __init__(self) -> None:
         self.home_likeness = 1 # home likeness of current cell
         self.target_likeness = 0 # target liekness of current cell

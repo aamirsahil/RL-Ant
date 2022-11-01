@@ -1,6 +1,6 @@
-from action import Action
-from sense import Sense
-from AI import QLearn
+from action import StudyOne as Action
+from sense import SenseOne as Sense
+from AI import QLearn as AI
 
 import random as rd
 
@@ -18,7 +18,7 @@ class Agent:
         # action
         self.action = Action()
         # AI
-        self.ai = QLearn()
+        self.ai = AI()
     def load(self):
         pass
     def update(self, world=None):

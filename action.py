@@ -19,6 +19,11 @@ class Action:
         agent.orient = (agent.orient - 45) % 360
     def turnBack(self, agent):
         agent.orient = (agent.orient + 180) % 360
+
+# action set for study one
+class StudyOne(Action):
+    def __init__(self) -> None:
+        super().__init__()
     # acion pallete
     # action=0
     def moveRandom(self, agent, **kwarg):
