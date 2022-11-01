@@ -12,11 +12,11 @@ class Agent:
             "y" : 0
         }
         # orientation starts from looking right(0) and turns anti-clockwise
-        self.orient = 0
+        self.orient = [0]
         # senses
         self.sense = Sense()
         # action
-        self.action = Action()
+        self.action = Action(self.pos, self.orient)
         # AI
         self.ai = AI()
     def load(self):
