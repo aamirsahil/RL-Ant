@@ -1,4 +1,9 @@
-from numpy import random
+from action import Action
+from sense import Sense
+from AI import QLearn
+
+import random as rd
+
 class Agent:
     def __init__(self) -> None:
         # position
@@ -6,73 +11,40 @@ class Agent:
             "x" : 0,
             "y" : 0
         }
-        # 
-        # orientaion
-        # orientation starts from looking right(0) and turns clockwise
+        # orientation starts from looking right(0) and turns anti-clockwise
         self.orient = 0
         # senses
-        # class sense
-
+        self.sense = Sense()
         # action
-        # class action
-
-        # at every iteration, sense and take action
+        self.action = Action()
+        # AI
+        self.ai = QLearn()
+    def load(self):
         pass
-    def update(self):
-        # sense
-        # take action
-        # update pos and orient
-        pass
-
-class Sense:
-    def __init__(self) -> None:
-        self.home_likeness = 0 # home likeness of surrounding cell
-        self.target_likeness = 0 # target liekness of surrounding cell
-        self.has_food = 0 # been to target
-        self.delta_time = 0 # time since last creation of pheromone
-
-class Action:
-    def __init__(self) -> None:
-        pass
-
-    def move_forward(self):
-        steps = [
-            (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1) 
-        ]
-        step = steps[int(self.orient / 45)]
-        self.pos["x"] += step[0]
-        self.pos["y"] += step[1]
-
-    # acion pallete
-    def move_random(self):
-        self.delta_time = (self.delta_time + 1) % 6
-        dir = random.choice([0, 1, 2])
-        # step made corresponding to direction -> 0=0, 1=45, 2=90, .... 7=315
-
-        # turn right
-        if dir == 1:
-            self.orient = (self.orient - 45)%360
-        # turn left
-        if dir == 2:
-            self.orient = (self.orient - 45)%360
-        # move forward
-        self.move_forward()
-
-    def move_to_home(self, surrounding_grid):
-        self.delta_time = (self.delta_time + 1) % 6
-        # turn to home
-        self.orient = surrounding_grid.index(max(surrounding_grid))*45
-        # move forward
-        self.move_forward()
-    def move_to_target(self, surrounding_grid):
-        self.delta_time = (self.delta_time + 1) % 6
-        # turn to target
-        self.orient = surrounding_grid.index(max(surrounding_grid))*45
-        # move forward
-        self.move_forward()
-    def create_home_pheromone(self, grid):
-        self.delta_time = 0
-        pass
-    def create_target_pheromone(self, grid):
-        self.delta_time = 0
-        pass
+    def update(self, world=None):
+        # set the sensory state of the agent
+        self.sense.senseWorld(self)
+        # choose action
+        action = self.ai.decide()
+        # select action based on the current sensory state
+        self.action.takeAction(action, world)
+    def takeAction(self, action=0, world=None):
+        action = rd.randint(0, 4)
+        if action == 0:
+            self.action.moveRandom(self)
+        elif action == 1:
+            # home pheromone level of surrounding cells
+            surrounding_cells = world.calcSurroundingCells(agent_pos=self.pos, type='Home')
+            self.action.moveToHome(self, surrounding_cells=surrounding_cells)
+        elif action == 2:
+            # target pheromone level of surrounding cells
+            surrounding_cells = world.calcSurroundingCells(agent_pos=self.pos, type='Target')
+            self.action.moveToTarget(self, surrounding_cells=surrounding_cells)
+        elif action == 3:
+            # get instance of current cell
+            current_cell = world.getCurrentCell(agent_pos=self.pos)
+            self.action.createHomePher(self, current_cell=current_cell)
+        elif action == 4:
+            # get instance of current cell
+            current_cell = world.getCurrentCell(agent_pos=self.pos)
+            self.action.createTargetPher(self, current_cell=current_cell)

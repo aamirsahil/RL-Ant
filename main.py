@@ -1,14 +1,10 @@
 import matplotlib.pyplot as plt
-from agent import Agent
+from system import System
+from UI import UI
 
 def main():
-    agent = Agent()
-    x, y = [], []
-    for i in range(1000):
-        x.append(agent.pos["x"])
-        y.append(agent.pos["y"])
-        agent.move_random()
-    plt.plot(x, y)
-    plt.show()
+    system = System()
+    ui = UI()
+    system.run()
 if __name__ == "__main__":
     main()
