@@ -1,3 +1,8 @@
+from cell import Cell
+
+import json
+import sys
+
 # World class that keep track of world state
 class World():
     def __init__(self, width=10, height=10, boundary='periodic', **kwargs) -> None:
@@ -8,95 +13,136 @@ class World():
         self.boundary = boundary
         # create the lattice cells
         self.grid = [[Cell() for j in range(self.width)] for i in range(self.height)]
+        # to find surroundig cells
+        self.steps = [
+            (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1) 
+        ]
+        # evoporation and dispersion data
+        self.evoporate = kwargs["evoporate"]
+        self.evoporation_rate = kwargs["evoporation_rate"]
+        self.disperse = kwargs["disperse"]
+        self.disperse_rate = kwargs["dispersion_rate"]
 
     # initialize starting world state
-    def load(self, file='./food.txt', **kwargs):
+    def load(self, file='./food.txt'):
         file_name = file
-        lines=open(file_name).readlines() # reads the food.txt file
-        lines=[x.strip('\n') for x in lines] # remove '\n' from each line
-        fh=len(lines)
-        fw=max([len(x) for x in lines])
-        if fh>self.height:
-            fh=self.height
-            starty=0
+        with open(file_name) as f:
+            data = f.read()
+        map_data = json.loads(data)
+        map_array = self.convertMapData(**map_data)
+        for i in range(self.height):
+            for j in range(self.width):
+                self.grid[i][j].setCell(**map_array[i][j])
+    # update world cells
+    def update(self):
+        for i in range(self.height):
+            for j in range(self.width):
+                # evoporate the pheromone
+                if self.evoporate:
+                    self.grid[i][j].evoporate(evoporation_rate=self.evoporation_rate)
+                # disperse pheromone
+                pos = {
+                    'x' : j,
+                    'y' : i,
+                }
+                # dispersing home pheremone
+                if self.disperse:
+                    surrounding_cell = self.getSurroundingCell(pos=pos, type="home")
+                    self.grid[i][j].disperse(surrounding_cell, type="home", dispersion_rate=self.disperse_rate)
+
+    # convert map_data to array
+    def convertMapData(self, home=None, target=None):
+        map_array = []
+        for i in range(self.height):
+            map_array.append([])
+            for j in range(self.width):
+                inside_home = (home['x0'] <= j) and (j < (home['x0']+home['width'])) and \
+                    (home['y0'] <= i) and (i < (home['y0']+home['height']))
+                inside_target = (target['x0'] <= j) and (j < (target['x0']+target['width'])) and \
+                    (target['y0'] <= i) and (i < (target['y0']+target['height']))
+                map_value = {
+                        "is_home" : False,
+                        "is_target" : False,
+                        "home_pher_level" : 0.0,
+                        "target_pher_level" : 0.0,
+                    }
+                if inside_home:
+                    map_value["is_home"] = True
+                if inside_target:
+                    map_value["is_target"] = True
+                map_array[-1].append(map_value)
+        return map_array
+    # check if the food target file is allowed
+    def checkFile(self, init_data=None):
+        x1 = init_data['home']['x0']
+        w1 = init_data['home']['width']
+        x2 = init_data['target']['x0']
+        w2 = init_data['target']['width']
+        y1 = init_data['home']['x0']
+        h1 = init_data['home']['width']
+        y2 = init_data['target']['x0']
+        h2 = init_data['target']['width']
+        x_intersect = not (x1<x2 and (x1 + w1)<x2 and (x2 + w2 - self.width)<x1)
+        y_intersect = not (y1<y2 and (y1 + h1)<y2 and (h2 + h2 - self.width)<y1)
+        if x_intersect or y_intersect:
+            terminate = True
         else:
-            starty=(self.height-fh)/2
-        if fw>self.width:
-            fw=self.width
-            startx=0
-        else:
-            startx=(self.width-fw)/2
-        for j in range(fh):
-            line=lines[j]
-            for i in range(min(fw,len(line))):
-                self.grid[int(startx+i)][int(starty+j)].load(line=line[i])
+            terminate = False
+        return terminate
     # get home cells
     def getHomeCells(self):
         home_cells = []
-        for i in range(self.width):
-            for j in range(self.height):
+        for i in range(self.height):
+            for j in range(self.width):
                 if self.grid[i][j].is_home:
                     home_cells.append((i,j))
         return home_cells
-    # get info about cell surrounding the agent
-    def getSurroundingCell(self, agent_pos, type):
-        if type == 'Home':
-            pass
-        if type == 'Target':
-            pass
+    # get target cells
+    def getTargetCells(self):
+        target_cells = []
+        for i in range(self.height):
+            for j in range(self.width):
+                if self.grid[i][j].is_target:
+                    target_cells.append((i,j))
+        return target_cells
+    # get info about cells surrounding selected cell
+    def getSurroundingCell(self, pos=None, type=None):
+        surrounding_cells = []
+        for step in self.steps:
+            x, y = self.getIndex(pos=pos, step=step)
+            if x==None and y==None:
+                continue
+            if type == "home":
+                surrounding_cells.append(self.grid[x][y].home_pher_level)
+            elif type == "target":
+                surrounding_cells.append(self.grid[x][y].target_pher_level)
+        return surrounding_cells
+    def getIndex(self, pos=None, step=None):
+        x = pos['x'] + step[0]
+        y = pos['y'] + step[1]
+        if self.boundary == "periodic":
+            x %= self.width
+            y %= self.height
+        elif self.boundary == "reflective":
+            inside_x = (x < self.width and x >= 0)
+            inside_y = (y < self.height and y >= 0)
+            if not inside_x or not inside_y:
+                return None, None # so that these cells will never be max
+        return x, y
+    # apply boundary condition
+    def checkBoundary(self, agent):
+        inside_x = agent.pos['x'] < self.width and agent.pos['x'] >= 0
+        inside_y = agent.pos['y'] < self.height and agent.pos['y'] >= 0
+        if not inside_x or not inside_y:
+            if self.boundary == "periodic":
+                agent.pos['x'] %= self.width
+                agent.pos['y'] %= self.height
+            if self.boundary == "reflective":
+                agent.action.turnBack()
+                agent.action.moveForward()
     # get info about current cell
-    def getCurrentCell(self, agent_pos):
-        x_index = agent_pos['x']
-        y_index = (self.height-1) - agent_pos['y']
-        current_cell = self.grid[x_index][y_index]
+    def getCurrentCell(self, pos):
+        x = pos['x']
+        y = pos['y']
+        current_cell = self.grid[x][y]
         return current_cell
-# Cell class to repersent each cell in the lattice
-class Cell:
-    def __init__(self) -> None:
-        self.is_home = False
-        self.is_target = False
-        self.home_pher_level = 0
-        self.target_pher_level = 0
-
-    # update home pheromone level in the environment
-    def addHomePher(self, pher_unit=0.2):
-        self.home_pher_level += pher_unit
-
-    # update target pheromone level in the environment
-    def addTargetPher(self, pher_unit=0.2):
-        self.target_pher_level += pher_unit
-        
-    # evoporates the pheromone in the environment as time goes by
-    def evoporate(self, evoporation_rate=0.99):
-        self.home_pher_level *= evoporation_rate
-        self.target_pher_level *= evoporation_rate
-        
-    # disperse the pheromone to surrounding cell depending on differnce
-    # in concentration
-    def disperse(self, surrounding_cell, dispersion_rate=0.4):
-        self.disperseHomePher(surrounding_cell['home'], dispersion_rate)
-        self.disperseTargetPher(surrounding_cell['target'], dispersion_rate)
-    # disperse home pheromone
-    def disperseHomePher(self, surrounding_cell, dispersion_rate):
-        avg_home_pher_level_env = sum(surrounding_cell)/len(surrounding_cell)
-        home_pher_difference = avg_home_pher_level_env - self.home_pher_level
-        self.home_pher_level += home_pher_difference*dispersion_rate
-    # disperse target pheromone
-    def disperseTargetPher(self, surrounding_cell, dispersion_rate):
-        avg_target_pher_level_env = sum(surrounding_cell)/len(surrounding_cell)
-        target_pher_difference = avg_target_pher_level_env - self.target_pher_level
-        self.target_pher_level += target_pher_difference*dispersion_rate
-
-    # set cells as either home or target
-    def load(self, **kwarg):
-        if kwarg['line'] == 'H':
-            self.setCell(is_home=True, is_target=False, home_pher_level=0, target_pher_level=0)
-        elif kwarg['line'] == 'F':
-            self.setCell(is_home=False, is_target=True, home_pher_level=0, target_pher_level=0)
-        else:
-            self.setCell(home_pher_level=0, target_pher_level=0)
-    def setCell(self, is_home=False, is_target=False, **kwarg):
-        self.is_home = is_home
-        self.is_target = is_target
-        self.home_pher_level = kwarg['home_pher_level']
-        self.target_pher_level = kwarg['target_pher_level']

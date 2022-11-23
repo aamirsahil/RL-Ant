@@ -11,40 +11,55 @@ class Agent:
             "x" : 0,
             "y" : 0
         }
-        # orientation starts from looking right(0) and turns anti-clockwise
+        # orientation starts from looking right(0) and turns anti-clockwise(defined as a list to make it mutable)
         self.orient = [0]
         # senses
         self.sense = Sense()
         # action
-        self.action = Action(self.pos, self.orient)
+        action_data = {
+            'pos' : self.pos,
+            'orient' : self.orient,
+        }
+        self.action = Action(**action_data)
         # AI
-        self.ai = AI()
-    def load(self):
-        pass
-    def update(self, world=None):
-        # set the sensory state of the agent
-        self.sense.senseWorld(self)
+        ai_data = {
+            "epsilon" : 0.1,
+            "alpha" : 0.2,
+            "lambd" : 0.5,
+            "epsilon_decay" : 0.01,
+            "decay_till" : 0,
+        }
+        self.ai = AI(**ai_data)
+        # 
+        self.collected_food = 0
+    def load(self, home_cells=None):
+        # load init position
+        starting_loc = rd.choice(home_cells)
+        self.pos['x'] = starting_loc[0]
+        self.pos['y'] = starting_loc[1]
+        # load Q table
+        q_data = {
+            "states" : self.sense.getAllState(),
+            "actions" : self.action.actions,
+        }
+        self.ai.load(**q_data)
+    def do(self, world=None):
         # choose action
-        action = self.ai.decide()
+        curr_state = self.sense.getState()
+        action = self.ai.decide(curr_state)
+        # print(action)
         # select action based on the current sensory state
-        self.action.takeAction(action, world)
-    def takeAction(self, action=0, world=None):
-        action = rd.randint(0, 4)
-        if action == 0:
-            self.action.moveRandom(self)
-        elif action == 1:
-            # home pheromone level of surrounding cells
-            surrounding_cells = world.calcSurroundingCells(agent_pos=self.pos, type='Home')
-            self.action.moveToHome(self, surrounding_cells=surrounding_cells)
-        elif action == 2:
-            # target pheromone level of surrounding cells
-            surrounding_cells = world.calcSurroundingCells(agent_pos=self.pos, type='Target')
-            self.action.moveToTarget(self, surrounding_cells=surrounding_cells)
-        elif action == 3:
-            # get instance of current cell
-            current_cell = world.getCurrentCell(agent_pos=self.pos)
-            self.action.createHomePher(self, current_cell=current_cell)
-        elif action == 4:
-            # get instance of current cell
-            current_cell = world.getCurrentCell(agent_pos=self.pos)
-            self.action.createTargetPher(self, current_cell=current_cell)
+        self.action.do(action, world)
+        return action
+    def update(self, world, action):
+        current_cell = world.getCurrentCell(self.pos)
+        self.getReward(current_cell)
+        self.sense.setState(current_cell, action)
+    def learn(self, world=None):
+        new_state = self.sense.getState()
+        self.ai.learn(new_state)
+    def getReward(self, current_cell):
+        self.ai.reward = -1
+        if current_cell.is_home == 1 and self.sense.has_food == 1:
+            self.ai.reward = 10
+            self.collected_food += 1

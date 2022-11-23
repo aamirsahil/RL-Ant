@@ -1,22 +1,22 @@
+import numpy as np
+
 class A:
     def __init__(self) -> None:
         self.a = 10
-        self.b = 20
-        self.c = {'x' : 30}
-        self.B = B(self.c)
+        self.b = 50
+        self.c = 60
     def run(self):
         print(self.c)
-        self.B.run()
-class B():
-    def __init__(self, c) -> None:
-        self.c = c
+class B(A):
+    def __init__(self) -> None:
+        super().__init__()
     def run(self):
-        self.c['x'] = 50
+        print(self.a)
 
 def main():
-    a = A()
-    a.run()
-    a.run()
+    a = [1,1,1]
+    b = a.index(max(a))
+    print(b)
 
 if __name__=='__main__':
     main()
