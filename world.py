@@ -13,7 +13,7 @@ class World():
         self.boundary = boundary
         # create the lattice cells
         self.grid = [[Cell() for j in range(self.width)] for i in range(self.height)]
-        # to find surroundig cells
+        # to find surrounding cells
         self.steps = [
             (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1) 
         ]
@@ -24,7 +24,7 @@ class World():
         self.disperse_rate = kwargs["dispersion_rate"]
 
     # initialize starting world state
-    def load(self, file='./food.txt'):
+    def load(self, file=r'C:\Users\HP\Desktop\Vedzita\Research\tifr\git\RL-Ant\food.txt'):
         file_name = file
         with open(file_name) as f:
             data = f.read()
